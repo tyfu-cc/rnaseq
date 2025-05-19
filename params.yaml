@@ -1,0 +1,11 @@
+input: "/home/tianyi/test-data/rnaseq/samplesheet.csv"
+outdir: "/home/tianyi/test-data/rnaseq/test-output"
+threads: 2
+fasta: "/home/tianyi/genomes/mouse/GRCm38.99/fasta/Mus_musculus.GRCm38.dna_sm.primary_assembly.fa"
+gtf: "/home/tianyi/genomes/mouse/GRCm38.99/gtf/Mus_musculus.GRCm38.99.gtf"
+star_rsem_index: "/home/tianyi/genomes/mouse/GRCm38.99/star_rsem/"
+rseqc_modules: "inner_distance,junction_annotation,RNA_fragment_size,read_GC,read_distribution"
+
+# star_index: /home/tianyi/genomes/mouse/GRCm38.99/star/
+# rsem_index: /home/tianyi/genomes/mouse/GRCm38.99/rsem/
+# email": f.tianyi@wustl.edu

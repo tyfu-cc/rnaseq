@@ -1,4 +1,5 @@
 #!/usr/bin/env nextflow
+
 /*
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     tyfu-cc/rnaseq-nf
@@ -7,15 +8,26 @@
 ----------------------------------------------------------------------------------------
 */
 
+
+/*
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    GENOME PARAMETER VALUES
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+*/
+
+
 /*
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     IMPORT FUNCTIONS / MODULES / SUBWORKFLOWS / WORKFLOWS
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 */
 
-include { RNASEQ-NF  } from './workflows/rnaseq-nf'
-include { PIPELINE_INITIALISATION } from './subworkflows/local/utils_nfcore_rnaseq-nf_pipeline'
-include { PIPELINE_COMPLETION     } from './subworkflows/local/utils_nfcore_rnaseq-nf_pipeline'
+include { PIPELINE_INITIALISATION } from "./subworkflows/local/utils_rnaseq_pipeline"
+include { PREPARE_GENOME          } from "./subworkflows/local/prepare_genome"
+include { RNASEQ                  } from "./workflows/rnaseq"
+include { PIPELINE_COMPLETION     } from "./subworkflows/local/utils_rnaseq_pipeline"
+
+
 /*
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     NAMED WORKFLOWS FOR PIPELINE
@@ -25,22 +37,48 @@ include { PIPELINE_COMPLETION     } from './subworkflows/local/utils_nfcore_rnas
 //
 // WORKFLOW: Run main analysis pipeline depending on type of input
 //
-workflow TYFUCC_RNASEQ-NF {
+workflow ZHANGLAB_RNASEQ {
 
     take:
     samplesheet // channel: samplesheet read in from --input
 
-    main:
 
-    //
-    // WORKFLOW: Run pipeline
-    //
-    RNASEQ-NF (
-        samplesheet
+    main:
+    ch_versions = Channel.empty()
+
+    PREPARE_GENOME(
+      params.fasta,
+      params.gtf,
+      params.gene_bed,
+      params.transcript_fasta,
+      params.star_index,
+      params.rsem_index,
+      params.star_rsem_index,
+      params.aligner
     )
+    ch_versions = ch_versions.mix(PREPARE_GENOME.out.versions)
+
+    // WORKFLOW: Run pipeline
+    RNASEQ (
+        samplesheet,
+        PREPARE_GENOME.out.fasta,
+        PREPARE_GENOME.out.gtf,
+        PREPARE_GENOME.out.fai,
+        PREPARE_GENOME.out.chrom_sizes,
+        PREPARE_GENOME.out.gene_bed,
+        PREPARE_GENOME.out.transcript_fasta,
+        PREPARE_GENOME.out.star_index,
+        PREPARE_GENOME.out.rsem_index,
+        PREPARE_GENOME.out.star_rsem_index,
+        ch_versions
+    )
+
+
     emit:
-    multiqc_report = RNASEQ-NF.out.multiqc_report // channel: /path/to/multiqc_report.html
+    multiqc_report = RNASEQ.out.multiqc_report // channel: /path/to/multiqc_report.html
+
 }
+
 /*
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     RUN MAIN WORKFLOW
@@ -64,10 +102,10 @@ workflow {
 
     //
     // WORKFLOW: Run main workflow
-    //
-    TYFUCC_RNASEQ-NF (
+    ZHANGLAB_RNASEQ (
         PIPELINE_INITIALISATION.out.samplesheet
     )
+
     //
     // SUBWORKFLOW: Run completion tasks
     //
@@ -78,9 +116,18 @@ workflow {
         params.outdir,
         params.monochrome_logs,
         params.hook_url,
-        TYFUCC_RNASEQ-NF.out.multiqc_report
+        ZHANGLAB_RNASEQ.out.multiqc_report
     )
 }
+
+
+/*
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    FUNCTIONS
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+*/
+
+
 
 /*
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

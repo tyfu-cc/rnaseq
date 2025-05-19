@@ -8,12 +8,12 @@
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 */
 
+include { completionEmail           } from "${projectDir}/subworkflows/nf-core/utils_nfcore_pipeline"
+include { completionSummary         } from "${projectDir}/subworkflows/nf-core/utils_nfcore_pipeline"
+include { imNotification            } from "${projectDir}/subworkflows/nf-core/utils_nfcore_pipeline"
+include { UTILS_NFCORE_PIPELINE     } from "${projectDir}/subworkflows/nf-core/utils_nfcore_pipeline"
+include { UTILS_NEXTFLOW_PIPELINE   } from "${projectDir}/subworkflows/nf-core/utils_nextflow_pipeline"
 
-include { completionEmail           } from '../../nf-core/utils_nfcore_pipeline'
-include { completionSummary         } from '../../nf-core/utils_nfcore_pipeline'
-include { imNotification            } from '../../nf-core/utils_nfcore_pipeline'
-include { UTILS_NFCORE_PIPELINE     } from '../../nf-core/utils_nfcore_pipeline'
-include { UTILS_NEXTFLOW_PIPELINE   } from '../../nf-core/utils_nextflow_pipeline'
 
 /*
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -32,42 +32,34 @@ workflow PIPELINE_INITIALISATION {
     input             //  string: Path to input samplesheet
 
     main:
-
     ch_versions = Channel.empty()
 
-    //
     // Print version and exit if required and dump pipeline parameters to JSON file
-    //
     UTILS_NEXTFLOW_PIPELINE (
         version,
         true,
         outdir,
-        workflow.profile.tokenize(',').intersect(['conda', 'mamba']).size() >= 1
+        workflow.profile.tokenize(",").intersect(["conda", "mamba"]).size() >= 1
     )
 
-    //
     // Check config provided to the pipeline
-    //
     UTILS_NFCORE_PIPELINE (
         nextflow_cli_args
     )
 
-    //
     // Create channel from input file provided through params.input
-    //
-
     Channel
         .fromPath(params.input)
         .splitCsv(header: true, strip: true)
         .map { row ->
-            [[id:row.sample], row.fastq_1, row.fastq_2]
+            [[id:row.id], row.r1, row.r2]
         }
         .map {
-            meta, fastq_1, fastq_2 ->
-                if (!fastq_2) {
-                    return [ meta.id, meta + [ single_end:true ], [ fastq_1 ] ]
+            meta, r1, r2 ->
+                if (!r2) {
+                    return [ meta.id, meta + [ single_end:true ], [ r1 ] ]
                 } else {
-                    return [ meta.id, meta + [ single_end:false ], [ fastq_1, fastq_2 ] ]
+                    return [ meta.id, meta + [ single_end:false ], [ r1, r2 ] ]
                 }
         }
         .groupTuple()
@@ -84,6 +76,7 @@ workflow PIPELINE_INITIALISATION {
     samplesheet = ch_samplesheet
     versions    = ch_versions
 }
+
 
 /*
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -133,19 +126,18 @@ workflow PIPELINE_COMPLETION {
     }
 }
 
+
 /*
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     FUNCTIONS
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 */
 
-//
 // Validate channels from input samplesheet
-//
 def validateInputSamplesheet(input) {
     def (metas, fastqs) = input[1..2]
 
-    // Check that multiple runs of the same sample are of the same datatype i.e. single-end / paired-end
+    // Check that multiple runs of the same sample are of the same datatype, i.e., single-end / paired-end
     def endedness_ok = metas.collect{ meta -> meta.single_end }.unique().size == 1
     if (!endedness_ok) {
         error("Please check input samplesheet -> Multiple runs of a sample must be of the same datatype i.e. single-end or paired-end: ${metas[0].id}")
@@ -153,9 +145,8 @@ def validateInputSamplesheet(input) {
 
     return [ metas[0], fastqs ]
 }
-//
+
 // Generate methods description for MultiQC
-//
 def toolCitationText() {
     // TODO nf-core: Optionally add in-text citation tools to this list.
     // Can use ternary operators to dynamically construct based conditions, e.g. params["run_xyz"] ? "Tool (Foo et al. 2023)" : "",
@@ -165,7 +156,7 @@ def toolCitationText() {
             "FastQC (Andrews 2010),",
             "MultiQC (Ewels et al. 2016)",
             "."
-        ].join(' ').trim()
+        ].join(" ").trim()
 
     return citation_text
 }
@@ -177,7 +168,7 @@ def toolBibliographyText() {
     def reference_text = [
             "<li>Andrews S, (2010) FastQC, URL: https://www.bioinformatics.babraham.ac.uk/projects/fastqc/).</li>",
             "<li>Ewels, P., Magnusson, M., Lundin, S., & Käller, M. (2016). MultiQC: summarize analysis results for multiple tools and samples in a single report. Bioinformatics , 32(19), 3047–3048. doi: /10.1093/bioinformatics/btw354</li>"
-        ].join(' ').trim()
+        ].join(" ").trim()
 
     return reference_text
 }
@@ -196,7 +187,7 @@ def methodsDescriptionText(mqc_methods_yaml) {
         def temp_doi_ref = ""
         def manifest_doi = meta.manifest_map.doi.tokenize(",")
         manifest_doi.each { doi_ref ->
-            temp_doi_ref += "(doi: <a href=\'https://doi.org/${doi_ref.replace("https://doi.org/", "").replace(" ", "")}\'>${doi_ref.replace("https://doi.org/", "").replace(" ", "")}</a>), "
+            temp_doi_ref += "(doi: <a href=\"https://doi.org/${doi_ref.replace("https://doi.org/", "").replace(" ", "")}\">${doi_ref.replace("https://doi.org/", "").replace(" ", "")}</a>), "
         }
         meta["doi_text"] = temp_doi_ref.substring(0, temp_doi_ref.length() - 2)
     } else meta["doi_text"] = ""
@@ -219,3 +210,25 @@ def methodsDescriptionText(mqc_methods_yaml) {
     return description_html.toString()
 }
 
+
+// Function to check whether biotype field exists in GTF file
+def biotypeInGtf(gtf_file, biotype) {
+    def hits = 0
+    gtf_file.eachLine { line ->
+        def attributes = line.split("\t")[-1].split()
+        if (attributes.contains(biotype)) {
+            hits += 1
+        }
+    }
+    if (hits) {
+        return true
+    } else {
+        log.warn "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n" +
+            "  Biotype attribute '${biotype}' not found in the last column of the GTF file!\n\n" +
+            "  Biotype QC will be skipped to circumvent the issue below:\n" +
+            "  https://github.com/nf-core/rnaseq/issues/460\n\n" +
+            "  Amend '--featurecounts_group_type' to change this behaviour.\n" +
+            "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
+        return false
+    }
+}
