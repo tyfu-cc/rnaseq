@@ -7,15 +7,15 @@
 
 ### Minimum Requirements
 To run the pipeline, you will need the following:
-1. **Sample Sheet**
+1. **Sample Sheet:**
    A sample sheet that contains the necessary information about your sequencing samples. Here is an example of a sample sheet for a single paired-end sample:
     ```csv
     id,r1,r2
     test,test_1.fastq.gz,test_2.fastq.gz
     ```
-2. **Reference Genome**
+2. **Reference Genome:**
     The genome sequence in FASTA format.
-3. **Gene Annotation File**
+3. **Gene Annotation File:**
     A gene annotation file in GTF format.
 
 ### Running the Pipeline
