@@ -10,3 +10,4 @@ null/
 .nextflow/
 .nextflow.log
 .nextflow.log.*
+.git*
