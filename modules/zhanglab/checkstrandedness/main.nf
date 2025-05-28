@@ -2,9 +2,7 @@ process CHECKSTRANDEDNESS {
     tag "${meta.id}"
     label "process_medium"
 
-    // container "${ workflow.containerEngine == 'singularity' && !task.ext.singularity_pull_docker_container ?
-    //     'https://community-cr-prod.seqera.io/docker/registry/v2/blobs/sha256/17/1758869538eb8e658077cc14cd7a4e76fd9b6d73d3a68f85a70bf292e39e27c5/data' :
-    //     'community.wave.seqera.io/library/cutadapt:5.0--991bbd2e184b7014' }"
+    container "ghcr.io/tyfu-cc/checkstrandedness-1.0.1:latest"
 
     input:
     tuple val(meta), path(reads)
