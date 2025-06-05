@@ -2,7 +2,7 @@ process CHECKSTRANDEDNESS {
     tag "${meta.id}"
     label "process_medium"
 
-    container "ghcr.io/tyfu-cc/checkstrandedness-1.0.1:latest"
+    container "ghcr.io/tyfu-cc/checkstrandedness:1.0.1"
 
     input:
     tuple val(meta), path(reads)
